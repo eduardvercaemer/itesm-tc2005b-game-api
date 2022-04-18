@@ -1,4 +1,5 @@
 import express from "express";
+import jwt from "jsonwebtoken";
 import cors from "cors";
 import debug from "debug";
 import {
@@ -9,8 +10,9 @@ import {
     EventHistory,
     sync,
 } from "./data";
-import { API } from "./config";
+import { API, JWT } from "./config";
 import apiReference from "./api-reference.html";
+import req from "express/lib/request";
 
 const ERROR = {
     UNIQUE_CONSTRAINT: "SequelizeUniqueConstraintError",
@@ -19,11 +21,13 @@ const ERROR = {
 };
 
 const MSG = {
+    SUCCESS: "SUCCESS",
     CREATED: "CREATED",
     DELETED: "DELETED",
     NAME_TAKEN: "NAME_TAKEN",
     INVALID_DATA: "INVALID_DATA",
     INVALID_REFERENCE: "INVALID_REFERENCE",
+    INVALID_LOGIN: "INVALID_LOGIN",
     DB_RESET: "DB_RESET",
     DB_UPDATED: "DB_UPDATED",
     NOT_FOUND: "NOT_FOUND",
@@ -50,15 +54,15 @@ export function startApi() {
     express()
         .use(cors())
         .use(express.json())
-        .use((req, res, next) => {
+        .use((req, _res, next) => {
             logger(`${req.method} ${req.url}`);
             next();
         })
-        .get("/", (req, res) => res.sendFile(
+        .get("/", (_req, res) => res.sendFile(
             /api-reference.*html/.exec(apiReference)[0],
             { root: __dirname }))
         /* PLAYER ENDPOINTS */
-        .get("/player", (req, res, next) => {
+        .get("/player", (_req, res, next) => {
             Player.findAll({ attributes: ['username'] })
                 .then(data => res.json({ data }))
                 .catch(next);
@@ -94,20 +98,30 @@ export function startApi() {
             const { username, email, password } = req.body;
             // TODO: validation
             Player.create({ username, email, password })
-                .then(data => res.json({ status: MSG.CREATED }))
+                .then(_ => res.json({ status: MSG.CREATED }))
                 .catch(errorHandler(res, next));
         })
         .delete("/player/:username", (req, res, next) => {
             const { username } = req.params;
             Player.destroy({ where: { username } })
-                .then(data => res.json({ status: MSG.DELETED }))
+                .then(_ => res.json({ status: MSG.DELETED }))
                 .catch(next);
         })
-        .post("/player/login", (req, res, next) => {
-            // TODO
+        .post("/player/login", async (req, res, _next) => {
+            const { username, password } = req.body; 
+            const player = await Player.findOne({ where: { username, password }});
+            if (player === null) {
+                res.json({ status: MSG.INVALID_LOGIN })
+                return;
+            }
+
+            const uid = player.id;
+
+            const token = await jwt.sign({ uid }, JWT.SECRET);
+            res.json({ status: MSG.SUCCESS, token });
         })
         /* EVENT ENDPOINTS */
-        .get("/event", (req, res, next) => {
+        .get("/event", (_req, res, next) => {
             Event.findAll({ attributes: ['name', 'description', 'value'] })
                 .then(data => res.json({ data }))
                 .catch(next);
@@ -116,17 +130,17 @@ export function startApi() {
             const { name, description, value } = req.body;
             // TODO: validation
             Event.create({ name, description, value })
-                .then(data => res.json({ status: MSG.CREATED }))
+                .then(_ => res.json({ status: MSG.CREATED }))
                 .catch(errorHandler(res, next));
         })
         .delete("/event/:name", (req, res, next) => {
             const { name } = req.params;
             Event.destroy({ where: { name } })
-                .then(data => res.json({ status: MSG.DELETED }))
+                .then(_ => res.json({ status: MSG.DELETED }))
                 .catch(next);
         })
         /* MATCH ENDPOINTS */
-        .get("/match", (req, res, next) => {
+        .get("/match", (_req, res, next) => {
             Match.findAll({ attributes: ['id', 'duration'] })
                 .then(data => res.json({ data }))
                 .catch(next);
@@ -179,18 +193,18 @@ export function startApi() {
                 .catch(next);
         })
         /* DATA ENDPOINTS */
-        .get("/db/reset", (req, res, next) => {
+        .get("/db/reset", (_req, res, next) => {
             sync({ force: true })
                 .then(_ => res.json({ status: MSG.DB_RESET }))
                 .catch(next);
         })
-        .get("/db/update", (req, res, next) => {
+        .get("/db/update", (_req, res, next) => {
             sync({ alter: true })
                 .then(_ => res.json({ status: MSG.DB_UPDATED }))
                 .catch(next);
         })
         /* ERROR HANDLER */
-        .use((err, req, res, next) => {
+        .use((err, _req, res, _next) => {
             console.error(err);
             res.status(500).json({ err: err.message });
         })

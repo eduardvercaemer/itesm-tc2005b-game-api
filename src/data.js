@@ -4,9 +4,12 @@ import { DB } from "./config";
 
 const logger = debug("data");
 
-const dbUrl =
-    `mysql://${DB.USER}:${DB.PASSWORD}@${DB.HOST}:3306/${DB.DATABASE}`;
-const sequelize = new Sequelize(dbUrl, { logging: msg => logger(msg) });
+// use DB.URL when deploying
+const sequelize = new Sequelize({
+    dialect: "sqlite",
+    storage: "./db.sqlite",
+    logging: msg => logger(msg)
+});
 
 export const Player = sequelize.define('Player', {
     username: { type: DataTypes.STRING(64), allowNull: false, primaryKey: true },

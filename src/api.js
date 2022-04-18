@@ -115,9 +115,7 @@ export function startApi() {
                 return;
             }
 
-            const uid = player.id;
-
-            const token = await jwt.sign({ uid }, JWT.SECRET);
+            const token = await jwt.sign({ username }, JWT.SECRET);
             res.json({ status: MSG.SUCCESS, token });
         })
         /* EVENT ENDPOINTS */

@@ -12,7 +12,6 @@ import {
 } from "./data";
 import { API, JWT } from "./config";
 import apiReference from "./api-reference.html";
-import req from "express/lib/request";
 
 const ERROR = {
     UNIQUE_CONSTRAINT: "SequelizeUniqueConstraintError",
@@ -109,13 +108,17 @@ export function startApi() {
         })
         .post("/player/login", async (req, res, _next) => {
             const { username, password } = req.body; 
+            if (!username || !password) {
+                res.json({ status: MSG.INVALID_DATA });
+                return;
+            }
             const player = await Player.findOne({ where: { username, password }});
             if (player === null) {
                 res.json({ status: MSG.INVALID_LOGIN })
                 return;
             }
 
-            const token = await jwt.sign({ username }, JWT.SECRET);
+            const token = jwt.sign({ username }, JWT.SECRET);
             res.json({ status: MSG.SUCCESS, token });
         })
         /* EVENT ENDPOINTS */
@@ -207,6 +210,6 @@ export function startApi() {
             res.status(500).json({ err: err.message });
         })
         .listen(API.PORT, () => {
-            console.log(`listening on '${API.PORT}'`);
+            logger(`listening on '${API.PORT}'`);
         });
 }

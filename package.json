@@ -11,7 +11,8 @@
     }
   },
   "scripts": {
-    "start": "concurrently \"yarn watch:bundle\" \"yarn watch:node\"",
+    "start": "node ./dist/index.js",
+    "dev": "concurrently \"yarn watch:bundle\" \"yarn watch:node\"",
     "watch:bundle": "parcel watch --target api --port 9885",
     "watch:node": "nodemon --watch ./dist/index.js ./dist/index.js",
     "build": "parcel build --target api"

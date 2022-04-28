@@ -53,6 +53,7 @@ export function startApi() {
     express()
         .use(cors())
         .use(express.json())
+        .use(express.urlencoded())
         .use((req, _res, next) => {
             logger(`${req.method} ${req.url}`);
             next();
